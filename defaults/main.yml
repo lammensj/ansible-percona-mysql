@@ -1,5 +1,5 @@
 ---
 percona_mysql_version: '5.7'
-percona_server_databases: []
-percina_server_users: []
-percona_server_config: {}
+percona_mysql_databases: []
+percina_mysql_users: []
+percona_mysql_config: {}
