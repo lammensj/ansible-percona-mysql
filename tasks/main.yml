@@ -1,0 +1,123 @@
+---
+- name: Ensure root password is set.
+  fail:
+    msg: "You must set a root password (percona_server_root_password)."
+  when: percona_server_root_password is not defined
+
+- name: Check if Percona is installed
+  command: "dpkg-query -W percona-server-server-{{ percona_mysql_version }}"
+  register: percona_check_deb
+  failed_when: percona_check_deb.rc > 1
+  changed_when: percona_check_deb.rc == 1
+
+- name: Fetch Percona repository.
+  get_url:
+    url: "https://repo.percona.com/apt/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+    dest: "/home/vagrant/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+  when: percona_check_deb.rc == 1
+
+- name: Install Percona package.
+  apt:
+    deb: "/home/vagrant/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+  when: percona_check_deb.rc == 1
+
+- name: Install Percona.
+  apt:
+    name: "{{ item }}"
+    state: latest
+    update_cache: yes
+  with_items:
+    - "percona-server-server-{{ percona_mysql_version }}"
+    - "percona-server-client-{{ percona_mysql_version }}"
+    - percona-toolkit
+    - percona-xtrabackup
+    - python-mysqldb
+
+- name: Start MySQL server.
+  service:
+    name: mysql
+    state: started
+    enabled: true
+
+- name: Set MySQL root password.
+  mysql_user:
+    name: root
+    host: "{{ item }}"
+    password: "{{ percona_server_root_password }}"
+    login_user: root
+    login_password: "{{ percona_server_root_password }}"
+    check_implicit_admin: yes
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: Ensure anonymous users are not in de database.
+  mysql_user:
+    name: ''
+    host: "{{ item }}"
+    state: absent
+    login_user: root
+    login_password:  "{{ percona_server_root_password }}"
+  with_items:
+    - "{{ ansible_hostname }}"
+    - localhost
+
+- name: remove test database
+  mysql_db:
+    name: test
+    state: absent
+    login_user: root
+    login_password:  "{{ percona_server_root_password }}"
+
+- name: Create fnv1a_64.
+  shell: "/usr/bin/mysql -uroot -p{{ percona_server_root_password }} -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\" && touch /var/log/libfnv1a_udf.so.done"
+  args:
+    creates: /var/log/libfnv1a_udf.so.done
+
+- name: Create fnv_64.
+  shell: "/usr/bin/mysql -uroot -p{{ percona_server_root_password }} -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\" && touch /var/log/libfnv_udf.so.done"
+  args:
+    creates: /var/log/libfnv_udf.so.done
+
+- name: Create murmur_hash.
+  shell: "/usr/bin/mysql -uroot -p{{ percona_server_root_password }} -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\" && touch /var/log/libmurmur_udf.so.done"
+  args:
+    creates: /var/log/libmurmur_udf.so.done
+  notify:
+    - restart mysql
+
+- name: Ensure databases exists.
+  mysql_db:
+    name: "{{ item.name }}"
+    encoding: "{{ item.encoding | default('utf8') }}"
+    login_user: root
+    login_password: "{{ percona_server_root_password }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ percona_server_databases }}"
+  when: item.name is defined and item.name != ""
+
+- name: Ensure database users exists
+  mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password | default(item.name) }}"
+    host: "{{ item.host | default('localhost') }}"
+    priv: "{{ item.priv }}"
+    login_user: root
+    login_password: "{{ percona_server_root_password }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ percona_server_users }}"
+  when: item.name is defined and item.name != ""
+
+- name: Configure MySQL.
+  ini_file:
+    dest: /etc/mysql/my.cnf
+    section: mysqld
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    mode: 644
+    backup: yes
+  with_dict: "{{ percona_server_config }}"
+  notify:
+    - restart mysql
