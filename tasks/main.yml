@@ -13,12 +13,12 @@
 - name: Fetch Percona repository.
   get_url:
     url: "https://repo.percona.com/apt/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
-    dest: "/home/{{ ansible_env.USER }}/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+    dest: "/var/tmp/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
   when: percona_check_deb.rc == 1
 
 - name: Install Percona package.
   apt:
-    deb: "/home/{{ ansible_env.USER }}/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+    deb: "/var/tmp/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
   when: percona_check_deb.rc == 1
 
 - name: Install Percona products.
