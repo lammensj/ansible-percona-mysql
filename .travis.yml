@@ -1,0 +1,46 @@
+---
+language: python
+python: "2.7"
+
+env:
+  - ANSIBLE_VERSION=latest
+  - ANSIBLE_VERSION=2.2.1
+
+branches:
+  only:
+    - master
+
+before_install:
+  - sudo apt-get update -qq
+
+  # Remove mysql-*
+  - sudo apt-get remove --purge 'mysql-*'
+  - sudo apt-get autoremove
+  - sudo apt-get autoclean
+
+  # Delete old data to prevent upgrade issues
+  - sudo rm -rf /var/lib/mysql
+  - sudo rm -rf /var/log/mysql
+
+install:
+  # Install Ansible.
+  - if [ "$ANSIBLE_VERSION" = "latest" ]; then pip install ansible; else pip install ansible==$ANSIBLE_VERSION; fi
+
+script:
+  - ansible --version
+
+  # Check the role/playbook's syntax.
+  - ansible-playbook -i localhost, --connection=local tests/play.yml --syntax-check
+
+  # Run the role/playbook with ansible-playbook.
+  - ansible-playbook -i localhost, --connection=local --sudo tests/play.yml -vvvv
+
+  # Run the role/playbook again, checking to make sure it's idempotent.
+  - >
+    ansible-playbook -i localhost, --connection=local --sudo tests/play.yml 
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1)
+
+notifications:
+  email: false
