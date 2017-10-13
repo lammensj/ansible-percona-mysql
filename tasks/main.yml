@@ -90,23 +90,23 @@
 
 - name: Ensure databases exists.
   mysql_db:
-    name: "{{ item.name }}"
-    encoding: "{{ item.encoding | default('utf8') }}"
+    name: "{{ item }}"
+    encoding: utf8mb4
     login_user: root
     login_password: "{{ percona_mysql_root_password }}"
-    state: "{{ item.state | default('present') }}"
+    state: present
   with_items: "{{ percona_mysql_databases }}"
-  when: item.name is defined and item.name != ""
+  when: item is defined and item != ""
 
 - name: Ensure database users exists
   mysql_user:
     name: "{{ item.name }}"
     password: "{{ item.password | default(item.name) }}"
-    host: "{{ item.host | default('localhost') }}"
-    priv: "{{ item.priv }}"
+    host: localhost
+    priv: "*.*:ALL"
     login_user: root
     login_password: "{{ percona_mysql_root_password }}"
-    state: "{{ item.state | default('present') }}"
+    state: present
   with_items: "{{ percona_mysql_users }}"
   when: item.name is defined and item.name != ""
 

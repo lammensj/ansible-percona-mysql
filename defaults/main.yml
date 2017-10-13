@@ -2,4 +2,6 @@
 percona_mysql_version: '5.7'
 percona_mysql_databases: []
 percina_mysql_users: []
-percona_mysql_config: {}
+percona_mysql_config:
+  bind-address: "0.0.0.0"
+  performance_schema: "off"

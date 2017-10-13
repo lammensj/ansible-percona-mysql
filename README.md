@@ -27,9 +27,9 @@ Example Playbook
       vars:
         percona_mysql_root_password: mysql_root_pass
         percona_mysql_databases:
-          - { name: database1 }
+          - database1
         percona_mysql_users:
-          - { name: user1, password: sapun, priv: "database1.*:ALL" }
+          - { name: user1, password: password1 }
         percona_mysql_config:
           bind-address: "0.0.0.0"
           performance_schema: "off"
